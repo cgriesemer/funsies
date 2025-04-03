@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CJ's Home Run Flight Tracking</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    /* Basic page styling */
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+    }
+    /* Map container covers the entire viewport */
+    #map {
+      height: 100%;
+      width: 100%;
+      position: relative;
+    }
+    /* Radar overlay styling */
+    .radar-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* clicks pass through */
+      overflow: hidden;
+    }
+    .radar-sweep {
+      position: absolute;
+      width: 200%;  /* enlarge to cover map */
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background: radial-gradient(transparent 40%, rgba(0,255,0,0.2) 45%, transparent 50%);
+      border-radius: 50%;
+      animation: rotate 5s linear infinite;
+    }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    /* Flight info panel styling */
+    .flight-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #0f0;
+      padding: 10px 15px;
+      border: 1px solid #0f0;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    .flight-info h2 {
+      margin: 0 0 5px;
+      font-size: 1.2em;
+    }
+    /* Custom marker (softball) styling */
+    .softball-icon div {
+      background: red;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Map container -->
+  <div id="map"></div>
+  <!-- Radar sweep overlay -->
+  <div class="radar-overlay">
+    <div class="radar-sweep"></div>
+  </div>
+  <!-- Flight information panel -->
+  <div class="flight-info">
+    <h2>CJ's Home Run</h2>
+    <p id="status">Tracking flight path...</p>
+  </div>
+  
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialize the map centered over the US
+    var map = L.map('map').setView([39.8283, -98.5795], 4);
+
+    // Add OpenStreetMap base layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Define the flight path coordinates:
+    // [latitude, longitude]
+    var pathCoordinates = [
+      [31.1, -97.45],    // Woodway, TX (approximate start)
+      [39.25, -114.886], // Ely, NV (current position)
+      [46.73, -117.17]   // Pullman, WA (destination)
+    ];
+
+    // Draw the flight path as a polyline on the map
+    var flightPath = L.polyline(pathCoordinates, {
+      color: 'lime',
+      weight: 3,
+      dashArray: '5, 5'
+    }).addTo(map);
+
+    // Create a custom marker for the softball "CJ's Home Run"
+    var softballIcon = L.divIcon({
+      className: 'softball-icon',
+      html: '<div></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    var marker = L.marker(pathCoordinates[0], {icon: softballIcon}).addTo(map);
+
+    // Update the status panel with the current coordinates
+    var statusPanel = document.getElementById('status');
+
+    // Animation variables
+    var currentSegment = 0;
+    var progress = 0;
+    // Adjust this value for a faster or slower animation
+    var animationSpeed = 0.002;
+
+    // Function to animate the marker along the flight path
+    function animateMarker() {
+      // If the animation reaches the end of the path, stop animating.
+      if (currentSegment >= pathCoordinates.length - 1) {
+        statusPanel.textContent = "Arrived at Pullman, WA";
+        return;
+      }
+      progress += animationSpeed;
+      // When the progress reaches the next point, move to the next segment.
+      if (progress >= 1) {
+        progress = 0;
+        currentSegment++;
+        if (currentSegment >= pathCoordinates.length - 1) {
+          marker.setLatLng(pathCoordinates[pathCoordinates.length - 1]);
+          statusPanel.textContent = "Arrived at Pullman, WA";
+          return;
+        }
+      }
+      // Linear interpolation between the current segment points.
+      var start = pathCoordinates[currentSegment];
+      var end = pathCoordinates[currentSegment + 1];
+      var lat = start[0] + (end[0] - start[0]) * progress;
+      var lng = start[1] + (end[1] - start[1]) * progress;
+      marker.setLatLng([lat, lng]);
+
+      // Update flight info status with the current position (rounded for display)
+      statusPanel.textContent = "Current Position: " + lat.toFixed(3) + ", " + lng.toFixed(3);
+
+      // Request the next frame of animation.
+      requestAnimationFrame(animateMarker);
+    }
+    animateMarker();
+  </script>
+</body>
+</html>
